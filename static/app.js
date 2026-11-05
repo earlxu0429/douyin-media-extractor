@@ -120,13 +120,17 @@ function renderMedia(item, index, isAlbum) {
 
   const actions = document.createElement('div');
   actions.className = 'media-actions';
-  actions.append(makeDirectDownloadButton(
-    item.kind === 'image' ? '直连下载图片' : '直连下载无水印',
-    item.direct_url,
-    item.filename,
-  ));
+  if (item.direct_download_available !== false) {
+    actions.append(makeDirectDownloadButton(
+      item.kind === 'image' ? '直连下载图片' : '直连下载无水印',
+      item.direct_url,
+      item.filename,
+    ));
+  }
   actions.append(makeServerDownloadLink(
-    item.kind === 'image' ? '服务器备用图片' : '服务器备用无水印',
+    item.direct_download_available === false
+      ? (item.kind === 'image' ? '服务器下载图片' : '服务器下载无水印')
+      : (item.kind === 'image' ? '服务器备用图片' : '服务器备用无水印'),
     item.download_url,
   ));
   if (item.kind === 'video' && item.watermarked) {

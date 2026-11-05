@@ -206,11 +206,11 @@ class ParserTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(value, "registered-guest")
             self.assertEqual(_load_guest_cookie(), "registered-guest")
 
-    async def test_watermarked_redirect_prefers_cors_capable_https_cdn(self):
+    async def test_media_redirect_prefers_cors_capable_https_cdn(self):
         final = "https://v11-default.365yg.com/watermarked.mp4"
 
         def handler(request):
-            if "playwm" in request.url.path:
+            if "/play/" in request.url.path or "/playwm/" in request.url.path:
                 return httpx.Response(302, headers={"location": final})
             return httpx.Response(
                 206,
@@ -222,11 +222,13 @@ class ParserTests(unittest.IsolatedAsyncioTestCase):
             )
 
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=False) as client:
-            result = await _resolve_watermarked_source(
-                client,
-                "https://aweme.snssdk.com/aweme/v1/playwm/?video_id=test",
-            )
-        self.assertEqual(result, final)
+            for path in ("play", "playwm"):
+                with self.subTest(path=path):
+                    result = await _resolve_watermarked_source(
+                        client,
+                        f"https://aweme.snssdk.com/aweme/v1/{path}/?video_id=test",
+                    )
+                    self.assertEqual(result, final)
 
     async def test_guest_cookie_is_reused_then_refreshed_if_empty(self):
         work = {"aweme_id": "7690898792699535546", "video": {

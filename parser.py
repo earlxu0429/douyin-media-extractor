@@ -360,12 +360,16 @@ def _watermarked_urls(video: dict) -> list[str]:
 
 
 async def _resolve_watermarked_source(client: httpx.AsyncClient, url: str) -> str | None:
-    if valid_media_url(url) and "/playwm/" not in url:
+    path = urlsplit(url).path
+    if valid_media_url(url) and "/play/" not in path and "/playwm/" not in path:
         return url
     for _ in range(4):
         try:
             response = await client.get(url, headers={"User-Agent": APP_UA})
-            candidate = urljoin(url, response.headers.get("location", ""))
+            location = response.headers.get("location", "")
+            if not location:
+                continue
+            candidate = urljoin(url, location)
             if candidate.startswith("http://"):
                 candidate = "https://" + candidate.removeprefix("http://")
             if not valid_media_url(candidate):
@@ -557,6 +561,16 @@ async def parse_share(share_text: str) -> dict:
         extra_candidate = await _verified_1080_candidate(work) if kind == "video" else None
         result = normalize_work(work, work_id, extra_candidate)
         for media in result["media"]:
+            direct_source = media.get("url")
+            if direct_source:
+                resolved_direct = await _resolve_watermarked_source(client, direct_source)
+                media["direct_download_available"] = bool(resolved_direct)
+                if resolved_direct and resolved_direct != direct_source:
+                    old_fallbacks = media.get("fallback_sources", [])
+                    media["url"] = resolved_direct
+                    media["fallback_sources"] = list(
+                        dict.fromkeys([direct_source, *old_fallbacks])
+                    )
             watermark_source = media.get("watermark_source")
             if not watermark_source:
                 continue
