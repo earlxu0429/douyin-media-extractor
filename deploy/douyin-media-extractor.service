@@ -1,0 +1,33 @@
+[Unit]
+Description=Douyin Media Extractor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=douyin-media
+Group=douyin-media
+WorkingDirectory=/opt/douyin-media-extractor/current
+EnvironmentFile=/opt/douyin-media-extractor/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/douyin-media-extractor/venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8765 --proxy-headers
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/douyin-media-extractor/data
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+TasksMax=64
+LimitNOFILE=4096
+MemoryMax=256M
+CPUQuota=75%
+
+[Install]
+WantedBy=multi-user.target

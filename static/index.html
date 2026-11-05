@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0d5c45">
+    <meta name="author" content="EARL XU">
+    <meta name="description" content="轻取素材：粘贴抖音短链或分享文案，免登录解析并优先直连下载无水印视频、带水印版本、原图与封面。">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="zh_CN">
+    <meta property="og:site_name" content="轻取素材">
+    <meta property="og:title" content="轻取素材 | 抖音视频、原图与封面提取">
+    <meta property="og:description" content="免登录解析公开抖音作品，优先直连下载无水印视频、带水印版本、原图与封面。">
+    <meta property="og:url" content="https://douyin.earlxu.online/">
+    <meta property="og:image" content="https://douyin.earlxu.online/static/og-image.png?v=20261106-2">
+    <meta property="og:image:secure_url" content="https://douyin.earlxu.online/static/og-image.png?v=20261106-2">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="轻取素材，抖音视频、原图与封面提取">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="轻取素材 | 抖音视频、原图与封面提取">
+    <meta name="twitter:description" content="免登录解析公开抖音作品，优先直连下载无水印视频、带水印版本、原图与封面。">
+    <meta name="twitter:image" content="https://douyin.earlxu.online/static/og-image.png?v=20261106-2">
+    <link rel="image_src" href="https://douyin.earlxu.online/static/og-image.png?v=20261106-2">
+    <title>轻取素材 | 抖音视频、原图与封面提取</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/style.css?v=20261106-2">
+    <script src="/static/app.js?v=20261106-2" defer></script>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="轻取素材首页"><span class="brand-mark">Q</span><span>轻取素材</span></a>
+        <span class="topbar-note">DOUYIN MEDIA EXTRACTOR <span class="status-dot"></span> ONLINE</span>
+      </header>
+
+      <main>
+        <section class="hero" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <p class="eyebrow"><span class="eyebrow-line"></span> 只提取，不打扰</p>
+            <h1 id="hero-title">一条链接，<br><em>取出好素材。</em></h1>
+            <p class="hero-description">粘贴抖音短链或整段分享文案，解析后预览并下载无水印视频、带水印版本、原图与封面。</p>
+            <div class="hero-tags"><span>无需登录抖音</span><span>视频 / 图集</span><span>直连优先</span></div>
+          </div>
+          <div class="hero-art" aria-hidden="true">
+            <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+            <div class="art-card"><div class="art-card-top"><span class="art-dot"></span><span class="art-dot"></span><span class="art-dot"></span></div><div class="art-play">▶</div><div class="art-card-bottom"><span></span><span></span></div></div>
+            <span class="art-caption">MEDIA IN / FILE OUT</span>
+          </div>
+        </section>
+
+        <section class="workspace" aria-labelledby="workspace-title">
+          <div class="section-heading"><div><p class="section-index">01 / EXTRACT</p><h2 id="workspace-title">粘贴作品链接</h2></div><p>公开作品 · 视频与图片</p></div>
+          <form id="parse-form" class="parse-form">
+            <label for="share-input">抖音短链或完整分享文案</label>
+            <textarea id="share-input" name="share" rows="3" placeholder="例如：复制打开抖音，看看... https://v.douyin.com/xxxx/" required></textarea>
+            <div class="form-footer"><span>按 Enter 直接提取，Shift + Enter 换行；不存储作品文件。</span><div class="form-actions"><button type="button" id="clear-button" class="ghost-button">清空</button><button type="submit" id="parse-button" class="primary-button"><span id="parse-button-text">提取素材</span><span class="button-arrow">↗</span></button></div></div>
+          </form>
+          <p id="message" class="message" role="status" aria-live="polite" hidden></p>
+        </section>
+
+        <section id="result" class="result" aria-labelledby="result-title" hidden>
+          <div class="section-heading"><div><p class="section-index">02 / RESULT</p><h2 id="result-title">提取结果</h2></div><span id="result-type" class="result-pill"></span></div>
+          <div class="result-meta"><p id="result-author"></p><h3 id="result-name"></h3><a id="source-link" target="_blank" rel="noopener noreferrer">查看抖音原作品 ↗</a></div>
+          <div id="album-area" class="album-area" hidden></div>
+          <div id="media-list" class="media-list"></div>
+          <div id="cover-area" class="cover-area" hidden></div>
+          <p class="result-hint">优先使用“直连下载”，文件直接从抖音 CDN 保存到本机，不占本站服务器流量。直连失败时再使用明确标注的“服务器备用下载”。</p>
+        </section>
+      </main>
+
+      <footer><span>轻取素材 / DIRECT FIRST</span><span>&copy; 2026 EARL XU · 仅处理你有权访问和使用的公开内容</span></footer>
+    </div>
+  </body>
+</html>
