@@ -74,5 +74,24 @@ footer { display: flex; justify-content: space-between; padding: 26px 0 36px; co
 [hidden] { display: none !important; }
 @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes float { 50% { transform: translateY(-9px) rotate(8deg); } }
+@media (min-width: 831px) and (max-height: 900px) {
+  .topbar { height: 62px; }
+  .hero { min-height: 252px; }
+  .hero-copy { padding: 16px 0 18px; }
+  .eyebrow { margin-bottom: 10px; }
+  h1 { font-size: clamp(44px, 4.8vw, 60px); line-height: 1; }
+  .hero-description { margin: 12px 0 14px; line-height: 1.55; }
+  .hero-tags span { padding: 5px 10px; }
+  .hero-art { height: 244px; }
+  .hero-art::before { width: 190px; height: 190px; }
+  .art-card { transform: scale(.78) rotate(10deg); }
+  .orbit-one { width: 300px; height: 195px; }
+  .orbit-two { width: 380px; height: 245px; }
+  .art-caption { bottom: 10px; }
+  .workspace { padding: 22px 28px; }
+  .section-heading { margin-bottom: 14px; }
+  textarea { min-height: 80px; }
+  .form-footer { margin-top: 10px; }
+}
 @media (max-width: 830px) { .hero { grid-template-columns: 1fr; min-height: 0; }.hero-copy { padding: 60px 0 10px; }.hero-art { height: 230px; }.orbit-one { width: 285px; height: 180px; }.orbit-two { width: 360px; height: 220px; }.art-card { transform: scale(.7) rotate(10deg); }.art-caption { right: 20%; bottom: 10px; }.media-list.album { grid-template-columns: repeat(2, minmax(0,1fr)); } }
 @media (max-width: 600px) { .page-shell { padding: 0 16px; }.topbar { height: 68px; }.topbar-note { font-size: 9px; letter-spacing: .03em; }.hero-copy { padding: 44px 0 0; }.hero-art { height: 185px; }.hero-art::before { width: 170px; height: 170px; }.art-card { transform: scale(.58) rotate(10deg); }.orbit-one { width: 250px; height: 160px; }.orbit-two { width: 320px; height: 205px; }.art-caption { right: 8%; }.hero-description { font-size: 14px; }.workspace, .result { padding: 20px; border-radius: 18px; }.section-heading { align-items: start; }.section-heading > p { display: none; }.form-footer { align-items: stretch; flex-direction: column; }.form-actions { justify-content: flex-end; }.form-footer > span { order: 2; }.media-list.album { grid-template-columns: 1fr; }.media-card.video .media-preview { min-height: 250px; }.media-preview video { max-height: 430px; } footer { display: grid; gap: 5px; } }
