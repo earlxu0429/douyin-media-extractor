@@ -23,7 +23,7 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("轻取素材", home.text)
         self.assertIn("EARL XU", home.text)
         self.assertIn('property="og:image"', home.text)
-        self.assertIn("https://douyin.earlxu.online/static/og-image.png?v=20261106-2", home.text)
+        self.assertIn("https://douyin.earlxu.online/static/og-image.png?v=20261106-3", home.text)
         self.assertIn('href="/static/style.css?v=20261106-2"', home.text)
         self.assertIn('src="/static/app.js?v=20261106-2"', home.text)
         self.assertIn('href="/static/favicon.svg"', home.text)
