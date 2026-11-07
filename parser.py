@@ -510,17 +510,18 @@ def _watermarked_urls(video: dict) -> list[str]:
 
 async def _resolve_watermarked_source(client: httpx.AsyncClient, url: str) -> str | None:
     path = urlsplit(url).path
-    if valid_media_url(url) and "/play/" not in path and "/playwm/" not in path:
-        return url
     for _ in range(4):
         try:
-            response = await client.get(url, headers={"User-Agent": APP_UA})
-            location = response.headers.get("location", "")
-            if not location:
-                continue
-            candidate = urljoin(url, location)
-            if candidate.startswith("http://"):
-                candidate = "https://" + candidate.removeprefix("http://")
+            if valid_media_url(url) and "/play/" not in path and "/playwm/" not in path:
+                candidate = url
+            else:
+                response = await client.get(url, headers={"User-Agent": APP_UA})
+                location = response.headers.get("location", "")
+                if not location:
+                    continue
+                candidate = urljoin(url, location)
+                if candidate.startswith("http://"):
+                    candidate = "https://" + candidate.removeprefix("http://")
             if not valid_media_url(candidate):
                 continue
             async with client.stream(
@@ -534,7 +535,7 @@ async def _resolve_watermarked_source(client: httpx.AsyncClient, url: str) -> st
             ) as media:
                 if (
                     media.status_code in (200, 206)
-                    and media.headers.get("content-type", "").startswith("video/")
+                    and media.headers.get("content-type", "").startswith(("video/", "image/"))
                     and media.headers.get("access-control-allow-origin") == "*"
                 ):
                     return candidate

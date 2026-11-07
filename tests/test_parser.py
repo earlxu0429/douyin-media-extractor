@@ -277,6 +277,22 @@ class ParserTests(unittest.IsolatedAsyncioTestCase):
                     )
                     self.assertEqual(result, final)
 
+    async def test_direct_media_without_cors_is_not_marked_available(self):
+        url = "https://v11-default.365yg.com/no-cors.mp4"
+
+        def handler(request):
+            return httpx.Response(
+                206,
+                headers={
+                    "content-type": "video/mp4",
+                    "content-range": "bytes 0-0/100",
+                },
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=False) as client:
+            result = await _resolve_watermarked_source(client, url)
+        self.assertIsNone(result)
+
     async def test_guest_cookie_is_reused_then_refreshed_if_empty(self):
         work = {"aweme_id": "7690898792699535546", "video": {
             "play_addr": {"url_list": ["https://v11-default.365yg.com/play.mp4"]},
