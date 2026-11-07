@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import re
@@ -10,7 +11,7 @@ import shutil
 import tempfile
 import time
 from pathlib import Path
-from urllib.parse import urlencode, urljoin, urlsplit
+from urllib.parse import quote, urlencode, urljoin, urlsplit
 
 import httpx
 
@@ -43,6 +44,40 @@ URL_RE = re.compile(r"https?://[^\s<>\"'\]\)]+", re.I)
 WORK_RE = re.compile(r"/(video|note|slides)/(\d{15,})")
 TTWID_REGISTER_URL = "https://ttwid.bytedance.com/ttwid/union/register/"
 TTWID_COOKIE_DOMAINS = ("bytedance.com", "douyin.com", "iesdouyin.com")
+WEB_GUEST_URL = "https://live.douyin.com/?from_nav=1"
+WEB_DETAIL_URL = "https://www.douyin.com/aweme/v1/web/aweme/detail/"
+WEB_DETAIL_UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+)
+WEB_SIGN_SALT = "A96D855A08C0A9707F8BEF0D9A527E4E"
+WEB_DETAIL_BASE_PARAMS = {
+    "device_platform": "webapp",
+    "aid": "6383",
+    "channel": "channel_pc_web",
+    "pc_client_type": "1",
+    "version_code": "290100",
+    "version_name": "29.1.0",
+    "cookie_enabled": "true",
+    "screen_width": "1920",
+    "screen_height": "1080",
+    "browser_language": "zh-CN",
+    "browser_platform": "MacIntel",
+    "browser_name": "Chrome",
+    "browser_version": "131.0.0.0",
+    "browser_online": "true",
+    "engine_name": "Blink",
+    "engine_version": "131.0.0.0",
+    "os_name": "Mac OS",
+    "os_version": "10.15.7",
+    "cpu_core_num": "8",
+    "device_memory": "8",
+    "platform": "PC",
+    "downlink": "10",
+    "effective_type": "4g",
+    "round_trip_time": "0",
+    "update_version_code": "170400",
+}
 APP_UA = (
     "com.ss.android.ugc.aweme/410000 (Linux; U; Android 13; zh_CN; "
     "Pixel 7; Build/TQ3A.230805.001; Cronet/TTNetVersion:1.0.0.0)"
@@ -60,25 +95,56 @@ class ParseError(Exception):
     pass
 
 
+def _load_guest_data() -> dict:
+    try:
+        data = json.loads(GUEST_COOKIE_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError, TypeError):
+        return {}
+
+
 def _load_guest_cookie() -> str | None:
     try:
-        saved = json.loads(GUEST_COOKIE_FILE.read_text(encoding="utf-8"))
+        saved = _load_guest_data()
         value = saved.get("ttwid")
         if saved.get("expires_at", 0) > time.time() and isinstance(value, str):
             if 10 <= len(value) <= 1000 and not re.search(r"[\s;]", value):
                 return value
-    except (OSError, ValueError, TypeError, AttributeError):
+    except (TypeError, AttributeError):
         pass
     return None
 
 
-def _save_guest_cookie(value: str, expires_at: float) -> None:
+def _load_guest_uifid() -> str | None:
+    saved = _load_guest_data()
+    value = saved.get("uifid")
+    if saved.get("uifid_expires_at", 0) > time.time() and isinstance(value, str):
+        if 10 <= len(value) <= 2000 and not re.search(r"[\s;]", value):
+            return value
+    return None
+
+
+def _save_guest_cookie(
+    value: str,
+    expires_at: float,
+    *,
+    uifid: str | None = None,
+    uifid_expires_at: float | None = None,
+) -> None:
     directory = GUEST_COOKIE_FILE.parent
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(prefix=".ttwid-", dir=directory)
     try:
+        payload = {"ttwid": value, "expires_at": expires_at}
+        saved = _load_guest_data()
+        if uifid is not None:
+            payload["uifid"] = uifid
+            payload["uifid_expires_at"] = uifid_expires_at or time.time() + 365 * 86400
+        elif saved.get("uifid") and saved.get("uifid_expires_at", 0) > time.time():
+            payload["uifid"] = saved["uifid"]
+            payload["uifid_expires_at"] = saved["uifid_expires_at"]
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            json.dump({"ttwid": value, "expires_at": expires_at}, handle)
+            json.dump(payload, handle)
         os.replace(temporary, GUEST_COOKIE_FILE)
     finally:
         if os.path.exists(temporary):
@@ -133,6 +199,89 @@ async def _refresh_guest_cookie(kind: str, work_id: str, stale: str | None) -> s
                 expires_at = cookie.expires or time.time() + 365 * 86400
                 _save_guest_cookie(cookie.value, expires_at)
                 return cookie.value
+    return None
+
+
+async def _refresh_web_guest_identity(force: bool = False) -> tuple[str, str] | None:
+    async with _guest_cookie_lock:
+        ttwid = _load_guest_cookie()
+        uifid = _load_guest_uifid()
+        if not force and ttwid and uifid:
+            return ttwid, uifid
+        async with httpx.AsyncClient(
+            timeout=20,
+            follow_redirects=True,
+            headers={"User-Agent": WEB_DETAIL_UA, "Accept-Language": "zh-CN,zh;q=0.9"},
+        ) as client:
+            response = await client.get(WEB_GUEST_URL)
+            response.raise_for_status()
+            ttwid_cookie = next((c for c in client.cookies.jar if c.name == "ttwid"), None)
+            uifid_cookie = next((c for c in client.cookies.jar if c.name == "UIFID_TEMP"), None)
+        if ttwid_cookie is None or uifid_cookie is None:
+            return None
+        ttwid_expires_at = ttwid_cookie.expires or time.time() + 365 * 86400
+        uifid_expires_at = uifid_cookie.expires or time.time() + 7 * 86400
+        _save_guest_cookie(
+            ttwid_cookie.value,
+            ttwid_expires_at,
+            uifid=uifid_cookie.value,
+            uifid_expires_at=uifid_expires_at,
+        )
+        return ttwid_cookie.value, uifid_cookie.value
+
+
+def _encode_web_pairs(pairs: list[tuple[str, str]]) -> str:
+    return "&".join(
+        f"{quote(str(key), safe='*-._')}={quote(str(value), safe='*-._')}"
+        for key, value in pairs
+    )
+
+
+def _sign_web_detail_query(
+    pairs: list[tuple[str, str]], uifid: str, timestamp: int | None = None
+) -> tuple[str, str, str]:
+    stamp = str(int(time.time() if timestamp is None else timestamp))
+    covered = [*pairs, ("uifid", uifid), ("timestamp", stamp)]
+    query = _encode_web_pairs(covered)
+    signature = hashlib.md5(
+        f"{uifid}_{stamp}_{WEB_SIGN_SALT}_{query}".encode()
+    ).hexdigest()
+    return query, signature, stamp
+
+
+async def _fetch_web_detail(work_id: str) -> dict | None:
+    for force in (False, True):
+        try:
+            identity = await _refresh_web_guest_identity(force=force)
+        except (httpx.HTTPError, ValueError, TypeError):
+            continue
+        if identity is None:
+            continue
+        ttwid, uifid = identity
+        pairs = [*WEB_DETAIL_BASE_PARAMS.items(), ("aweme_id", work_id)]
+        query, signature, stamp = _sign_web_detail_query(pairs, uifid)
+        headers = {
+            "User-Agent": WEB_DETAIL_UA,
+            "Referer": "https://www.douyin.com/",
+            "Accept": "application/json, text/plain, */*",
+            "Cookie": f"ttwid={ttwid}; UIFID_TEMP={uifid};",
+            "uifid": uifid,
+            "x-secsdk-web-signature": signature,
+            "x-secsdk-web-expire": stamp,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                response = await client.get(
+                    f"{WEB_DETAIL_URL}?{query}&x-secsdk-web-signature={signature}",
+                    headers=headers,
+                )
+            response.raise_for_status()
+            payload = response.json()
+            detail = payload.get("aweme_detail")
+            if isinstance(detail, dict) and detail:
+                return detail
+        except (httpx.HTTPError, ValueError, TypeError):
+            continue
     return None
 
 
@@ -537,9 +686,10 @@ async def _verified_1080_candidate(work: dict) -> dict | None:
 async def parse_share(share_text: str) -> dict:
     async with httpx.AsyncClient(timeout=20, follow_redirects=False) as client:
         kind, work_id = await resolve_work(client, share_text)
-        work = None
+        work = await _fetch_web_detail(work_id) if kind in ("note", "slides") else None
         try:
-            work = await _fetch_feed(client, work_id)
+            if work is None:
+                work = await _fetch_feed(client, work_id)
         except (httpx.HTTPError, ValueError):
             pass
         if work is None:

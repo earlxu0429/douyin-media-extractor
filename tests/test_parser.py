@@ -8,7 +8,8 @@ from unittest.mock import AsyncMock, patch
 import httpx
 
 from parser import (
-    ParseError, _guest_ttwid, _load_guest_cookie, _refresh_guest_cookie,
+    ParseError, _guest_ttwid, _load_guest_cookie, _load_guest_uifid,
+    _refresh_guest_cookie, _sign_web_detail_query,
     _resolve_watermarked_source, _save_guest_cookie, _verified_1080_candidate,
     extract_share_url, normalize_work, parse_share, valid_media_url,
 )
@@ -168,10 +169,56 @@ class ParserTests(unittest.IsolatedAsyncioTestCase):
         ) as cookie_file:
             _save_guest_cookie("visitor-token-123", time.time() + 3600)
             self.assertEqual(_load_guest_cookie(), "visitor-token-123")
+            _save_guest_cookie(
+                "visitor-token-123",
+                time.time() + 3600,
+                uifid="visitor-uifid-123",
+                uifid_expires_at=time.time() + 3600,
+            )
+            self.assertEqual(_load_guest_uifid(), "visitor-uifid-123")
             self.assertEqual(os.stat(cookie_file).st_mode & 0o777, 0o600)
             self.assertEqual(os.stat(cookie_file.parent).st_mode & 0o777, 0o700)
             _save_guest_cookie("visitor-token-123", time.time() - 1)
             self.assertIsNone(_load_guest_cookie())
+
+    def test_web_detail_signature_is_deterministic(self):
+        query, signature, stamp = _sign_web_detail_query(
+            [("aweme_id", "7705396995306263242")],
+            "visitor-uifid",
+            timestamp=1700000000,
+        )
+        self.assertIn("aweme_id=7705396995306263242", query)
+        self.assertIn("uifid=visitor-uifid", query)
+        self.assertEqual(stamp, "1700000000")
+        self.assertRegex(signature, r"^[0-9a-f]{32}$")
+
+    def test_live_photo_image_adds_video_media(self):
+        work = {
+            "desc": "实况图",
+            "author": {"nickname": "作者"},
+            "images": [{
+                "url_list": ["https://p11.douyinpic.com/image.webp"],
+                "width": 1120,
+                "height": 720,
+                "live_photo_type": 1,
+                "video": {
+                    "bit_rate": [{
+                        "is_h265": 0,
+                        "bit_rate": 2859563,
+                        "play_addr": {
+                            "width": 1120,
+                            "height": 720,
+                            "data_size": 1087349,
+                            "url_list": ["https://v11-default.365yg.com/live.mp4"],
+                        },
+                    }],
+                },
+            }],
+        }
+        media = normalize_work(work, "7705396995306263242")["media"]
+        self.assertEqual([item["kind"] for item in media], ["image", "video"])
+        self.assertEqual(media[1]["url"], "https://v11-default.365yg.com/live.mp4")
+        self.assertEqual(media[1]["quality"], "1120×720 · H.264")
 
     def test_guest_ttwid_accepts_bytedance_register_cookie(self):
         cookies = httpx.Cookies()
